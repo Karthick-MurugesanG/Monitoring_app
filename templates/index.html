@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Resource Monitor Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: white;
+            text-align: center;
+        }
+
+        #dashboard {
+            max-width: 800px;
+            margin: auto;
+        }
+
+        canvas {
+            width: 100%;
+            height: 400px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        #toggleViewBtn {
+            background-color: #1e90ff;
+            color: white;
+        }
+
+        #stopBtn {
+            background-color: red;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="dashboard">
+        <h2>Resource Monitor Dashboard</h2>
+
+        <!-- Control Buttons -->
+        <div>
+            <button id="toggleViewBtn" onclick="switchView()">Switch to Graph View</button>
+            <button id="stopBtn">Stop App</button>
+        </div>
+
+        <!-- Accelerator Meters (Default) -->
+        <div id="acceleratorView">
+            <canvas id="cpuGauge"></canvas>
+            <canvas id="ramGauge"></canvas>
+            <canvas id="diskGauge"></canvas>
+            <canvas id="networkSentGauge"></canvas>
+            <canvas id="networkReceivedGauge"></canvas>
+        </div>
+
+        <!-- Graphs (Hidden Initially) -->
+        <div id="graphView" style="display: none;">
+            <canvas id="cpuChart"></canvas>
+            <canvas id="ramChart"></canvas>
+            <canvas id="diskChart"></canvas>
+            <canvas id="networkSentChart"></canvas>
+            <canvas id="networkReceivedChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let isGraphView = false;
+        let cpuLine, ramLine, diskLine, networkSentLine, networkReceivedLine;
+
+        document.getElementById("stopBtn").addEventListener("click", () => {
+            fetch("/api/stop", { method: "POST" })
+                .catch(() => { }) // Server might close before response
+                .finally(() => window.close());
+        });
+
+        function switchView() {
+            isGraphView = !isGraphView;
+            document.getElementById('acceleratorView').style.display = isGraphView ? 'none' : 'block';
+            document.getElementById('graphView').style.display = isGraphView ? 'block' : 'none';
+            document.getElementById('toggleViewBtn').innerText = isGraphView ? "Switch to Accelerator View" : "Switch to Graph View";
+
+            if (isGraphView) {
+                resetCharts();
+                fetchStats(); // Ensure one update right away
+            }
+        }
+
+        function resetCharts() {
+            if (cpuLine) cpuLine.destroy();
+            if (ramLine) ramLine.destroy();
+            if (diskLine) diskLine.destroy();
+            if (networkSentLine) networkSentLine.destroy();
+            if (networkReceivedLine) networkReceivedLine.destroy();
+
+            cpuLine = createLineChart("cpuChart", "CPU Usage Over Time", 100);
+            ramLine = createLineChart("ramChart", "RAM Usage Over Time", 100);
+            diskLine = createLineChart("diskChart", "Disk Usage Over Time", 100);
+            networkSentLine = createLineChart("networkSentChart", "Network Sent (MB)", 5000);
+            networkReceivedLine = createLineChart("networkReceivedChart", "Network Received (MB)", 5000);
+        }
+
+        function createGauge(id, label) {
+            return new Chart(document.getElementById(id).getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: [label, ''],
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: ['darkgreen', 'gray'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    rotation: -90,
+                    circumference: 180,
+                    cutout: '80%',
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true, position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function createLineChart(id, label, yMax) {
+            return new Chart(document.getElementById(id).getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: label,
+                        data: [],
+                        borderColor: 'white',
+                        borderWidth: 2,
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: yMax
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateGauge(chart, value) {
+            chart.data.datasets[0].data = [value, 100 - value];
+            chart.update();
+        }
+
+        function updateGraph(chart, value) {
+            if (chart.data.labels.length > 20) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            chart.data.labels.push(new Date().toLocaleTimeString());
+            chart.data.datasets[0].data.push(value);
+            chart.update();
+        }
+
+        const cpuGauge = createGauge("cpuGauge", "CPU Usage");
+        const ramGauge = createGauge("ramGauge", "RAM Usage");
+        const diskGauge = createGauge("diskGauge", "Disk Usage");
+        const networkSentGauge = createGauge("networkSentGauge", "Network Sent");
+        const networkReceivedGauge = createGauge("networkReceivedGauge", "Network Received");
+
+        function fetchStats() {
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(data => {
+                    updateGauge(cpuGauge, data.cpu);
+                    updateGauge(ramGauge, data.ram);
+                    updateGauge(diskGauge, data.disk);
+                    updateGauge(networkSentGauge, data.network_sent);
+                    updateGauge(networkReceivedGauge, data.network_received);
+
+                    if (isGraphView) {
+                        updateGraph(cpuLine, data.cpu);
+                        updateGraph(ramLine, data.ram);
+                        updateGraph(diskLine, data.disk);
+                        updateGraph(networkSentLine, data.network_sent);
+                        updateGraph(networkReceivedLine, data.network_received);
+                    }
+                })
+                .catch(error => console.error("Error fetching stats:", error));
+        }
+
+        setInterval(fetchStats, 2000);
+        fetchStats();
+    </script>
+
+</body>
+</html>
