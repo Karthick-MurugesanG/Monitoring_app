@@ -48,7 +48,7 @@ This app features both **gauge meters** and **graph views** to visualize system 
 
 ### �� Windows Users
 
-* Download the \*\*standalone \*\*\`\` file from the `dist/` folder.
+* Download the \*\*standalone \*\*\`\` file from the `distt/` folder.
 * No Python installation is required — just run the executable.
 
 ---
