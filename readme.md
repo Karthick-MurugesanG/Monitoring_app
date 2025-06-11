@@ -12,8 +12,8 @@ This app features both **gauge meters** and **graph views** to visualize system 
 ---
 
 ## 🚀 Live Demo
-
-👉 Try the app here:
+**Give Some Time For Rendering**
+* 👉 Try the app here:
 🔗 [https://monitoring-app-t664.onrender.com](https://monitoring-app-t664.onrender.com)
 
 ---
