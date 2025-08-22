@@ -1,5 +1,6 @@
 # 🔍 System Monitoring App — Built with Flask
 
+
 A lightweight system monitoring dashboard built using **Flask** that provides real-time stats for:
 
 * 🧠 **CPU usage**
